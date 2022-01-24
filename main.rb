@@ -23,7 +23,7 @@ class MrInfluxDB
 
   def copy(another, ms, from, to, col_types)
     tags = {}
-    client.query("show tag keys from foobar")[0]["values"].each { |v| tags[v["tagKey"]] = true }
+    client.query("show tag keys from #{ms}")[0]["values"].each { |v| tags[v["tagKey"]] = true }
 
     count = 0
     read_batch(ms, from, to) do |points|
