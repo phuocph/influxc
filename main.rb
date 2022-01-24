@@ -21,7 +21,7 @@ class MrInfluxDB
   end
 
 
-  def copy(another, ms, from, to)
+  def copy(another, ms, from, to, col_types)
     tags = {}
     client.query("show tag keys from foobar")[0]["values"].each { |v| tags[v["tagKey"]] = true }
 
@@ -29,8 +29,10 @@ class MrInfluxDB
     read_batch(ms, from, to) do |points|
       insert_points = points.map do |point|
         count += 1
-        create_point_to_insert(ms, tags, point)
+        create_point_to_insert(ms, tags, point, col_types)
       end
+
+      puts insert_points
       another.client.write_points(insert_points)
     end
 
@@ -38,14 +40,6 @@ class MrInfluxDB
   end
 
   private
-
-  def read(ms, from, to)
-    d = client.query(
-      "select * from #{ms} where %{from} <= time and time < %{to}",
-      params: {from: from, to: to},
-    )
-    d[0] ? d[0]["values"] : []
-  end
 
   def read_batch(ms, from, to)
     limit = 1000
@@ -63,7 +57,18 @@ class MrInfluxDB
     end
   end
 
-  def create_point_to_insert(ms, tags, point)
+  def create_value(value, type)
+    case type
+    when "integer"
+      value.to_i
+    when "float"
+      value.to_f
+    else
+      value
+    end
+  end
+
+  def create_point_to_insert(ms, tags, point, col_types)
     data = {
       series: ms,
       tags: {},
@@ -74,9 +79,9 @@ class MrInfluxDB
       if key == "time"
         data[:timestamp] = time_to_epoch(DateTime.parse(point["time"]).to_time)
       elsif tags[key]
-        data[:tags][key] = value.is_a?(Integer) ? value.to_f : value
+        data[:tags][key] = create_value(value, col_types[key])
       else
-        data[:values][key] = value.is_a?(Integer) ? value.to_f : value
+        data[:values][key] = create_value(value, col_types[key])
       end
     end
 
@@ -109,7 +114,10 @@ def main
   # end
   # i1.client.write_points(data)
 
-  puts i1.copy(i2 ,"foobar", "2022-01-21T00:00:00Z", "2022-01-23T00:00:00Z")
+  puts i1.copy(i2 ,"foobar", "2022-01-21T00:00:00Z", "2022-01-23T00:00:00Z", {
+    "internal" => "float",
+    "value" => "float",
+  })
 end
 
 main()
