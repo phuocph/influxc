@@ -89,7 +89,7 @@ class MrInfluxDB
   end
 
   def time_to_epoch(t)
-    "#{t.to_i}#{t.nsec}"
+    "#{time.to_i * (10 ** 9) + time.nsec}"
   end
 end
 
