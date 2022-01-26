@@ -76,6 +76,8 @@ class MrInfluxDB
     }
 
     point.each do |key, value|
+      next if (!value || value.empty?)
+
       if key == "time"
         data[:timestamp] = time_to_epoch(DateTime.parse(point["time"]).to_time)
       elsif tags[key]
